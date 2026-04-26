@@ -1,0 +1,48 @@
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui/index.html
+
+spring:
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: gemma2
+      embedding:
+        options:
+          model: nomic-embed-text
+    model:
+      chat: ollama
+      embedding: ollama
+ai:
+  provider: ollama
+
+rag:
+  store-path: ./data/rag/vector-store.json
+  document-index-path: ./data/rag/documents.json
+  auto-save: true
+
+tts:
+  model-path: ./data/model
+  # voices:
+  #   default:
+  #     model: en_US-lessac-medium.onnx
+  #     config: en_US-lessac-medium.onnx.json
+  #     sample-rate: 22050
+
+chat:
+  api:
+    system-prompt: "You are a thoughtful assistant that replies in the {voice} voice."
+    default-voice: neutral
+
+# 원본에 있던 이 키는 아마 오타 같습니다 (ai.provider를 의도했을 가능성)
+# i:
+#   provider: openai

@@ -1,0 +1,15 @@
+.gradle/
+.codex/*
+!.codex/config.toml
+!.codex/profiles.md
+.idea/
+.opencode/
+build/
+bin/
+gradle/distributions/*.zip
+data/model/
+data/rag/
+.mcp/memory.json
+.mcp/playwright-output/
+*.iml
+*.log

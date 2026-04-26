@@ -1,0 +1,63 @@
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+
+[profiles.low-token]
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+service_tier = "fast"
+
+[profiles.api-smoke]
+model = "gpt-5.4-mini"
+model_reasoning_effort = "low"
+personality = "pragmatic"
+service_tier = "fast"
+
+[profiles.deep-code]
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+service_tier = "fast"
+
+[mcp_servers.context7]
+args = ["-y", "@upstash/context7-mcp"]
+command = "npx"
+
+[mcp_servers.symdex]
+args = ["symdex", "serve"]
+command = "uvx"
+
+[mcp_servers.filesystem]
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/ygpark2/pjt/ainsoft/spring-ai"]
+command = "npx"
+
+[mcp_servers.memory]
+args = ["-y", "@modelcontextprotocol/server-memory"]
+command = "npx"
+env = { "MEMORY_FILE_PATH" = "/Users/ygpark2/pjt/ainsoft/spring-ai/.mcp/memory.json" }
+
+[mcp_servers.git]
+args = ["mcp-server-git", "--repository", "/Users/ygpark2/pjt/ainsoft/spring-ai"]
+command = "uvx"
+
+[mcp_servers.openapi_spring_ai]
+args = ["-y", "@ivotoby/openapi-mcp-server", "--api-base-url", "http://localhost:8080", "--openapi-spec", "/Users/ygpark2/pjt/ainsoft/spring-ai/.mcp/spring-ai-openapi.json", "--tools", "dynamic", "--verbose", "false"]
+command = "npx"
+
+[mcp_servers.playwright]
+args = ["-y", "@playwright/mcp", "--headless", "--isolated", "--allowed-hosts", "localhost,127.0.0.1", "--image-responses", "omit", "--snapshot-mode", "none", "--console-level", "error", "--output-dir", "/Users/ygpark2/pjt/ainsoft/spring-ai/.mcp/playwright-output"]
+command = "npx"
+
+[projects."/Users/ygpark2/pjt/ainsoft/spring-ai"]
+trust_level = "trusted"
+
+[notice]
+fast_default_opt_out = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-mini" = "gpt-5.2-codex"
+"gpt-5.3-codex" = "gpt-5.4"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 2

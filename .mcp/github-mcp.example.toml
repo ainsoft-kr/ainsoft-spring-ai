@@ -1,0 +1,20 @@
+# Add this block to .codex/config.toml after setting GITHUB_PERSONAL_ACCESS_TOKEN
+# in the shell that starts Codex.
+#
+# This uses GitHub's official MCP server in read-only mode and limits toolsets to
+# repository, issue, pull request, and workflow context.
+
+[mcp_servers.github]
+args = [
+  "run",
+  "-i",
+  "--rm",
+  "-e",
+  "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "-e",
+  "GITHUB_READ_ONLY=1",
+  "-e",
+  "GITHUB_TOOLSETS=repos,issues,pull_requests,actions",
+  "ghcr.io/github/github-mcp-server"
+]
+command = "docker"
