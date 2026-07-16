@@ -7,7 +7,9 @@ import com.ainsoft.ai.dto.RagResponse
 import com.ainsoft.ai.service.RagService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -32,5 +34,11 @@ class RagController(
     @PostMapping("/query")
     fun query(@Valid @RequestBody request: RagQueryRequest): ResponseEntity<RagResponse> {
         return ResponseEntity.ok(ragService.query(request))
+    }
+
+    @DeleteMapping("/documents/{id}")
+    fun deleteDocument(@PathVariable id: String): ResponseEntity<Void> {
+        val deleted = ragService.deleteDocument(id)
+        return if (deleted) ResponseEntity.noContent().build() else ResponseEntity.notFound().build()
     }
 }

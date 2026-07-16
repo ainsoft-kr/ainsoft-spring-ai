@@ -1,5 +1,6 @@
 package com.ainsoft.ai.controller
 
+import com.ainsoft.ai.advisor.ModerationException
 import com.ainsoft.ai.dto.ApiError
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
@@ -37,5 +38,11 @@ class GlobalExceptionHandler {
     fun handleMaxUploadSize(error: MaxUploadSizeExceededException): ResponseEntity<ApiError> {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
             .body(ApiError(error.message ?: "Uploaded media is too large"))
+    }
+
+    @ExceptionHandler(ModerationException::class)
+    fun handleModeration(error: ModerationException): ResponseEntity<ApiError> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ApiError(error.message ?: "Content blocked by moderation policy"))
     }
 }

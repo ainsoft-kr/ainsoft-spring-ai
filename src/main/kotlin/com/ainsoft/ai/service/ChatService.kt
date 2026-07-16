@@ -1,6 +1,8 @@
 package com.ainsoft.ai.service
 
+import com.ainsoft.ai.advisor.ModerationAdvisor
 import com.ainsoft.ai.config.ChatApiProperties
+import com.ainsoft.ai.config.ModerationProperties
 import com.ainsoft.ai.dto.ChatMemorySnapshot
 import com.ainsoft.ai.dto.ChatRequest
 import com.ainsoft.ai.dto.ChatResult
@@ -9,6 +11,7 @@ import com.ainsoft.ai.dto.OcrRequest
 import com.ainsoft.ai.dto.OcrResult
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor
+import org.springframework.ai.chat.client.advisor.api.Advisor
 import org.springframework.ai.chat.memory.ChatMemory
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.Resource
@@ -17,12 +20,14 @@ import org.springframework.util.MimeType
 import org.springframework.util.MimeTypeUtils
 import org.springframework.util.StringUtils
 import org.springframework.web.multipart.MultipartFile
+import reactor.core.publisher.Flux
 
 @Service
 class ChatService(
     private val chatClient: ChatClient,
     private val chatMemory: ChatMemory,
-    private val properties: ChatApiProperties
+    private val properties: ChatApiProperties,
+    private val moderationProperties: ModerationProperties
 ) {
 
     fun ask(request: ChatRequest): ChatResult {
@@ -69,6 +74,18 @@ class ChatService(
         return ChatMemorySnapshot(id, messages)
     }
 
+    fun clearHistory(conversationId: String) {
+        val id = normalizedConversationId(conversationId)
+        chatMemory.clear(id)
+    }
+
+    fun streamAsk(request: ChatRequest): Flux<String> {
+        val conversationId = normalizedConversationId(request.conversationId)
+        val voice = resolveVoice(request.voice)
+        val prompt = newPrompt(voice, conversationId)
+        return prompt.user(request.message).stream().content()
+    }
+
     private fun normalizedConversationId(conversationId: String?): String {
         return conversationId?.takeIf { it.isNotBlank() } ?: ChatMemory.DEFAULT_CONVERSATION_ID
     }
@@ -78,11 +95,17 @@ class ChatService(
     }
 
     private fun newPrompt(voice: String, conversationId: String) = chatClient.prompt().apply {
-        advisors(
-            MessageChatMemoryAdvisor.builder(chatMemory)
-                .conversationId(conversationId)
-                .build()
-        )
+        val advisors = buildList<Advisor> {
+            add(
+                MessageChatMemoryAdvisor.builder(chatMemory)
+                    .conversationId(conversationId)
+                    .build()
+            )
+            if (moderationProperties.enabled) {
+                add(ModerationAdvisor(moderationProperties))
+            }
+        }
+        advisors(advisors)
         if (StringUtils.hasText(properties.systemPrompt)) {
             system { spec -> spec.text(properties.systemPrompt).param("voice", voice) }
         }

@@ -37,6 +37,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-ollama")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation(libs.spring.ai.starter.model.openai)
+    implementation(libs.spring.ai.starter.model.oci.genai)
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory")
     implementation("io.github.givimad:piper-jni:1.2.0-c0670df")
     implementation(libs.spring.ai.advisors.vector.store)

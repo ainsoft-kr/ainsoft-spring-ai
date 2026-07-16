@@ -43,6 +43,29 @@ chat:
     system-prompt: "You are a thoughtful assistant that replies in the {voice} voice."
     default-voice: neutral
 
+# Moderation 설정 (기본 비활성화)
+# provider: keyword (내장 키워드 필터) 또는 openai (OpenAI /v1/moderations 호출)
+# provider=openai 사용 시 openai-api-key 설정 필요
+moderation:
+  enabled: false
+  provider: keyword
+  blocked-keywords: []
+  # openai-api-key: ${OPENAI_API_KEY}
+  # openai-base-url: https://api.openai.com
+
 # 원본에 있던 이 키는 아마 오타 같습니다 (ai.provider를 의도했을 가능성)
 # i:
 #   provider: openai
+
+# OCI GenAI 프로바이더 사용 시 아래 설정 필요 (ai.provider=oci로 변경)
+# spring:
+#   ai:
+#     oci:
+#       genai:
+#         authenticationType: file
+#         file: /path/to/.oci/config
+#         cohere:
+#           chat:
+#             options:
+#               compartment: ocid1.compartment.ocxxxx
+#               model: ocid1.model.ocxxxx

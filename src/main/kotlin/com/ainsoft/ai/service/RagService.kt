@@ -78,6 +78,15 @@ class RagService(
 
     fun list(): List<DocumentSummary> = documentIndex.values.sortedBy { it.id }
 
+    fun deleteDocument(id: String): Boolean {
+        val existed = documentIndex.remove(id) != null
+        if (existed) {
+            vectorStore.delete(listOf(id))
+            persistIfEnabled()
+        }
+        return existed
+    }
+
     fun query(request: RagQueryRequest): RagResponse {
         val question = request.question.trim()
         val builder = SearchRequest.builder()
