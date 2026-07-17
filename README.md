@@ -1,6 +1,10 @@
 # Spring AI Chat API
 
-Small Kotlin-based Spring Boot project demonstrating how to expose a simple chat completion endpoint backed by Spring AI's `ChatClient`.
+🌐 **Language** · [한국어](README.ko.md) · **English**
+
+---
+
+Kotlin-based Spring Boot project demonstrating how to expose AI-powered endpoints backed by Spring AI's `ChatClient`. Covers text chat, multimodal input, OCR extraction, text-to-speech, retrieval-augmented generation, content moderation, and streaming responses — all wired to a swappable model backend (Ollama, OpenAI, or OCI GenAI).
 
 ## Requirements
 
@@ -8,9 +12,9 @@ Small Kotlin-based Spring Boot project demonstrating how to expose a simple chat
 - Ollama server running locally (or accessible) with models: `gemma2` (chat) and `nomic-embed-text` (embeddings)
 - Optional: An OpenAI-compatible API key exposed through `OPENAI_API_KEY` if using OpenAI models
 
-## Running the server
+## Running the Server
 
-First, pull the required Ollama models:
+Pull the required Ollama models first:
 
 ```bash
 ollama pull gemma2
@@ -23,19 +27,21 @@ Then start the application:
 ./gradlew bootRun
 ```
 
-The application listens on `http://localhost:8080/api/chat` by default.
+The server listens on `http://localhost:8080` by default. Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`.
 
-## Calling the Chat Endpoint
+---
 
-Send a `POST` with JSON to `/api/chat`:
+## API Endpoints
+
+### Chat — `POST /api/chat`
+
+Send a JSON body to get a text reply. The optional `voice` field controls the tone via the system prompt, and `conversationId` ties requests to the same memory window.
 
 ```bash
 curl -X POST http://localhost:8080/api/chat \
   -H 'Content-Type: application/json' \
   -d '{"message":"What can you do for me today?","voice":"friendly"}'
 ```
-
-The response returns the assistant text plus the voice that was used:
 
 ```json
 {
@@ -44,9 +50,19 @@ The response returns the assistant text plus the voice that was used:
 }
 ```
 
-## Multimodal Input
+### Streaming Chat — `POST /api/chat/stream`
 
-When you want the LLM to reason about non-text inputs, send a multipart request to `/api/chat/multimodal` containing the JSON payload and the media blob (images, audio, etc.). The same system prompt controls how the assistant responds and the `{voice}` placeholder is filled with the requested voice.
+Returns a `text/event-stream` (Server-Sent Events) response, streaming tokens as they are generated.
+
+```bash
+curl -X POST http://localhost:8080/api/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Tell me a short story","voice":"neutral"}'
+```
+
+### Multimodal Input — `POST /api/chat/multimodal`
+
+Pass an image, audio, or any supported media blob alongside a text prompt via a `multipart/form-data` request.
 
 ```bash
 curl -X POST http://localhost:8080/api/chat/multimodal \
@@ -55,11 +71,9 @@ curl -X POST http://localhost:8080/api/chat/multimodal \
   -F 'media=@/path/to/image.png;type=image/png'
 ```
 
-The endpoint returns the assistant text plus the voice in the same shape as the regular chat endpoint.
+### OCR Extraction — `POST /api/chat/ocr`
 
-## OCR Extraction
-
-Uploading an image to `/api/chat/ocr` instructs the configured `ChatModel` to act like an OCR engine and extract the textual content. Supply a short `instructions` prompt to shape how the assistant interprets the media.
+Instructs the model to act as an OCR engine and return the text content of the uploaded image.
 
 ```bash
 curl -X POST http://localhost:8080/api/chat/ocr \
@@ -68,11 +82,29 @@ curl -X POST http://localhost:8080/api/chat/ocr \
   -F 'media=@/path/to/receipt.png;type=image/png'
 ```
 
-The response mirrors the existing chat shape but the `extractedText` field holds the OCR-style transcription along with the `voice` that was used.
+The response shape mirrors the regular chat response but includes an `extractedText` field.
 
-## Text-to-Speech (TTS)
+### Chat Memory — `GET /api/chat/memory/{conversationId}`
 
-Send a POST request to `/api/tts` to generate audio from text using the Piper model. Specify the text content, voice, output format, and playback speed in the JSON payload.
+Inspect the rolling message window stored for a conversation.
+
+```bash
+curl http://localhost:8080/api/chat/memory/my-session
+```
+
+### Clear Chat Memory — `DELETE /api/chat/memory/{conversationId}`
+
+Wipe the stored messages for a conversation window.
+
+```bash
+curl -X DELETE http://localhost:8080/api/chat/memory/my-session
+```
+
+---
+
+### Text-to-Speech — `POST /api/tts`
+
+Generate audio from text using the local Piper TTS model. Supported formats are `wav` and `pcm`. Speed can range from `0.5` to `2.0`.
 
 ```bash
 curl -X POST http://localhost:8080/api/tts \
@@ -81,7 +113,7 @@ curl -X POST http://localhost:8080/api/tts \
   --output output.wav
 ```
 
-The endpoint returns the audio file saved to the specified output filename. Place the Piper model artifacts in `./data/model` and download them with:
+Place the Piper model artifacts in `./data/model` and download them with:
 
 ```bash
 make piper-model
@@ -92,77 +124,127 @@ This downloads:
 - `./data/model/en_US-lessac-medium.onnx`
 - `./data/model/en_US-lessac-medium.onnx.json`
 
-Chat endpoints accept an optional `conversationId` in the JSON payload. When you pass the same ID a few times, the `ChatMemory` advisor will include the rolling window in future prompts, and you can inspect what the model retained via `GET /api/chat/memory/{conversationId}`.
+---
 
-## Configuration
+### RAG — Documents & Query
 
-- `spring.ai.ollama.chat.options.model`: defaults to `gemma2` for chat completions
-- `spring.ai.ollama.embedding.options.model`: defaults to `nomic-embed-text` for embeddings
-- `ai.provider`: selects the provider-specific `ChatModel` and `EmbeddingModel` beans. Supported values are `ollama`, `openai`, and `oci`.
-- `chat.api.system-prompt`: template for the system message. The `{voice}` placeholder is replaced with the requested voice (defaults to `neutral`).
+#### Add Documents — `POST /api/rag/documents`
 
-For OpenAI-compatible configuration (optional):
-- `spring.ai.openai.api-key`: your OpenAI API key
-- `spring.ai.openai.base-url`: the API base URL. If it includes `/v1`, set `spring.ai.openai.chat.completions-path=/chat/completions`.
-- `spring.ai.openai.chat.options.model`: the chat model ID.
-
-Spring AI exposes the shared [ChatModel API](https://docs.spring.io/spring-ai/reference/api/chatmodel.html) so you can swap providers without changing your business logic.
-
-## Model Coverage
-
-The project wires the following Spring AI categories so you can explore the combination that fits your needs:
-
-- **Chat**: Ollama chat completions via `spring-ai-starter-model-ollama` using `gemma2` (default, used by `/api/chat`).
-- **Embeddings**: Ollama embeddings via `nomic-embed-text` for semantic search and RAG capabilities.
-- **Image & Audio**: Multimodal chat depends on the configured chat model's media support. OpenAI image/audio capabilities are available once the OpenAI starter is enabled; local TTS uses Piper.
-- **Moderation**: OpenAI's moderation APIs are approachable through the same configuration, letting you guard calls before they hit the generative endpoints.
-
-### Optional: OpenAI-Compatible Models
-The OpenAI starter is included. To use an OpenAI-compatible local factory instead of Ollama, start the app with:
-
-```bash
-./gradlew bootRun --args='--ai.provider=openai --spring.ai.model.chat=openai --spring.ai.model.embedding=openai --spring.ai.openai.api-key=${OPENAI_API_KEY} --spring.ai.openai.base-url=http://localhost:8317/v1 --spring.ai.openai.chat.completions-path=/chat/completions --spring.ai.openai.chat.options.model=gemini-2.5-flash'
-```
-
-That model selection is compatible with the existing controller/service because they speak the same `ChatModel` contract.
-
-### OCR with OCI GenAI Cohere
-You can also plug a paid or free OCI GenAI Cohere model to perform OCR-style extractive reasoning. Add the OCI GenAI starter only when you plan to hit Oracle's REST endpoint instead of the default local Ollama setup.
-
-```groovy
-implementation 'org.springframework.ai:spring-ai-starter-model-oci-genai'
-```
-
-Then provide your credentials and model configuration in `application.properties` (replace the placeholders with real values):
-
-```properties
-spring.ai.model.chat=oci-genai
-spring.ai.oci.genai.authenticationType=file
-spring.ai.oci.genai.file=/path/to/.oci/config
-spring.ai.oci.genai.cohere.chat.options.compartment=ocid1.compartment.ocxxxx
-spring.ai.oci.genai.cohere.chat.options.model=ocid1.model.ocxxxx
-```
-
-The `/api/chat/ocr` endpoint sends the provided media to whichever `ChatModel` is configured and asks it to return the recognized text. The service also exposes `/api/chat/multimodal` for richer captioning flows that reuse the same prompt logic.
-
-### Chat Memory Support
-
-Spring AI automatically wires a `ChatMemory` implementation (`MessageWindowChatMemory` by default) when you include `spring-ai-starter-model-chat-memory`. The controller exposes `/api/chat/memory/{conversationId}` to peek at the remembered messages, and chat payloads accept an optional `conversationId` to keep the memory keyed to your user's session.
-
-### Retrieval-Augmented Generation (RAG)
-
-Spring AI already ships with RAG helpers, so the project pulls in `spring-ai-advisors-vector-store`, `spring-ai-rag`, and `spring-ai-vector-store` to build a minimal vector store + advisor pipeline. Use `POST /api/rag/documents` to add documents (text + metadata), `GET /api/rag/documents` to inspect what is stored, and `POST /api/rag/query` to answer questions with context drawn from the indexed documents.
+Ingest one or more text chunks into the vector store.
 
 ```bash
 curl -X POST http://localhost:8080/api/rag/documents \
   -H 'Content-Type: application/json' \
   -d '[{"text":"Spring AI wraps vector stores with QuestionAnswerAdvisor","source":"docs"}]'
+```
 
+#### List Documents — `GET /api/rag/documents`
+
+Inspect all indexed document summaries.
+
+```bash
+curl http://localhost:8080/api/rag/documents
+```
+
+#### Delete a Document — `DELETE /api/rag/documents/{id}`
+
+Remove a document from the vector store and the index. Returns `204 No Content` on success, `404 Not Found` if the ID does not exist.
+
+```bash
+curl -X DELETE http://localhost:8080/api/rag/documents/doc-id-here
+```
+
+#### Query — `POST /api/rag/query`
+
+Answer a question using context retrieved from the vector store.
+
+```bash
 curl -X POST http://localhost:8080/api/rag/query \
   -H 'Content-Type: application/json' \
   -d '{"question":"What does the QuestionAnswerAdvisor do?","topK":3}'
 ```
 
-The `/api/rag/query` response contains the assistant answer plus the vector-store context so you can see which documents were retrieved.
+The response contains the assistant answer plus the retrieved document context.
 
-More information on Spring AI chat tooling is available in the [official getting started guide](https://docs.spring.io/spring-ai/reference/getting-started.html).
+---
+
+## Content Moderation
+
+The `ModerationAdvisor` intercepts every chat request before it reaches the model. It is **disabled by default**. Enable it in `application.yml`:
+
+```yaml
+moderation:
+  enabled: true
+  provider: keyword          # or "openai"
+  blocked-keywords:
+    - "disallowed word"
+  # openai-api-key: ${OPENAI_API_KEY}
+  # openai-base-url: https://api.openai.com
+```
+
+When `provider: openai`, each request is checked against the OpenAI `/v1/moderations` endpoint. Network failures use a **fail-open** strategy — the request passes through with a warning log. Blocked requests return `HTTP 403`.
+
+---
+
+## Configuration
+
+| Key | Default | Description |
+|---|---|---|
+| `ai.provider` | `ollama` | Backend to use: `ollama`, `openai`, or `oci` |
+| `spring.ai.ollama.chat.options.model` | `gemma2` | Ollama chat model name |
+| `spring.ai.ollama.embedding.options.model` | `nomic-embed-text` | Ollama embedding model name |
+| `chat.api.system-prompt` | _(see yml)_ | System prompt template. `{voice}` is replaced at runtime |
+| `chat.api.default-voice` | `neutral` | Fallback voice when not specified in the request |
+| `moderation.enabled` | `false` | Enable content moderation |
+| `moderation.provider` | `keyword` | Moderation backend: `keyword` or `openai` |
+| `rag.store-path` | `./data/rag/vector-store.json` | Path to persist the vector store |
+| `rag.document-index-path` | `./data/rag/documents.json` | Path to persist the document index |
+| `tts.model-path` | `./data/model` | Directory containing Piper `.onnx` and `.json` files |
+
+### OpenAI-Compatible Backend
+
+```bash
+./gradlew bootRun --args='--ai.provider=openai \
+  --spring.ai.model.chat=openai \
+  --spring.ai.model.embedding=openai \
+  --spring.ai.openai.api-key=${OPENAI_API_KEY} \
+  --spring.ai.openai.base-url=http://localhost:8317/v1 \
+  --spring.ai.openai.chat.completions-path=/chat/completions \
+  --spring.ai.openai.chat.options.model=gemini-2.5-flash'
+```
+
+### OCI GenAI Backend
+
+Set `ai.provider=oci` and add the following to `application.yml`:
+
+```yaml
+spring:
+  ai:
+    oci:
+      genai:
+        authenticationType: file
+        file: /path/to/.oci/config
+        cohere:
+          chat:
+            options:
+              compartment: ocid1.compartment.ocxxxx
+              model: ocid1.model.ocxxxx
+```
+
+---
+
+## Model Coverage
+
+| Category | Implementation |
+|---|---|
+| **Chat** | Ollama (`gemma2`) · OpenAI-compatible · OCI GenAI Cohere |
+| **Embeddings** | Ollama (`nomic-embed-text`) · OpenAI |
+| **Multimodal** | Depends on the configured chat model's media support |
+| **TTS** | Local Piper JNI — no external API required |
+| **Moderation** | OpenAI `/v1/moderations` · Keyword blocklist |
+| **Memory** | `MessageWindowChatMemory` (in-process, rolling window) |
+| **RAG** | `SimpleVectorStore` + `QuestionAnswerAdvisor` |
+
+---
+
+More information is available in the [Spring AI getting started guide](https://docs.spring.io/spring-ai/reference/getting-started.html).
